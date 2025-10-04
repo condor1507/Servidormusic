@@ -8,11 +8,25 @@ app.use(express.json());
 
 const PORT = process.env.PORT || 3000;
 
-app.get("/convert", async (req, res) => {
-  const videoURL = req.query.url;
-  if (!videoURL) return res.status(400).json({ error: "URL requerida" });
+// Función para normalizar URLs de YouTube
+function normalizeURL(url){
+  try{
+    url = url.replace("youtu.be/","www.youtube.com/watch?v=");
+    const videoParam = url.includes("v=") ? url.split("v=")[1].slice(0,11) : null;
+    return videoParam ? "https://www.youtube.com/watch?v=" + videoParam : url.split("?")[0];
+  }catch(e){
+    return url;
+  }
+}
 
-  try {
+app.get("/convert", async (req, res) => {
+  let videoURL = req.query.url;
+  if(!videoURL) return res.status(400).json({ error: "URL requerida" });
+
+  videoURL = normalizeURL(videoURL);
+
+  try{
+    // Verifica si el video existe
     const info = await ytdl.getInfo(videoURL);
     const title = info.videoDetails.title.replace(/[\/\\?%*:|"<>]/g, "-");
 
@@ -25,9 +39,9 @@ app.get("/convert", async (req, res) => {
       highWaterMark: 1 << 25
     }).pipe(res);
 
-  } catch (err) {
+  } catch(err){
     console.error(err);
-    res.status(500).json({ error: "Error al convertir video a MP3" });
+    res.status(500).json({ error: "No se pudo convertir el video. Puede estar privado, restringido o protegido por copyright." });
   }
 });
 
